@@ -32,7 +32,7 @@ const Join = () => {
       };
 
     function emptyFields() {
-        if (!name || !room) {
+        if (!name || (!room && !newRoom)) {
             alert('Please fill in all fields');
             return true;
         }
