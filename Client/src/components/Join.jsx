@@ -20,11 +20,11 @@ const Join = () => {
 
     return (
         <div className='flex justify-center h-screen items-center text-center bg-slate-200'>
-            <div className='flex flex-col gap-3 bg-white p-3 rounded-xl shadow-xl'>
-                <p className="text-blue-800 font-bold p-2">Join a Chat</p>
+            <form className='flex flex-col gap-5 bg-white px-6 py-8 rounded-xl shadow-xl'>
+                <p className="text-blue-800 text-2xl font-bold p-2">Join a Chat</p>
                 <div>
                     <input 
-                    className='p-2 outline-slate-500 border'
+                    className='p-2 outline-slate-500 border rounded'
                         type="text" 
                         onChange={(e) => setName(e.target.value)} 
                         placeholder="Username" 
@@ -32,7 +32,7 @@ const Join = () => {
                 </div>
                 <div>
                     <input 
-                    className='p-2 outline-slate-500 border'
+                    className='p-2 outline-slate-500 border rounded'
                         type="text" 
                         onChange={(e) => setRoom(e.target.value)} 
                         placeholder="Room Name" 
@@ -43,13 +43,13 @@ const Join = () => {
                     onClick={e => (!name || !room) ? e.preventDefault() : null} 
                     to={`/chat?name=${name}&room=${room}`}
                 >
-                    <button className="bg-blue-700 hover:bg-blue-600 text-white font-bold py-1 px-4 rounded-md shadow-xl" onClick={emptyFields}>
+                    <button className="bg-blue-700 hover:bg-blue-600 text-white font-bold py-1 text-lg px-4 rounded-md shadow-xl" onClick={emptyFields}>
                         Sign In
                     </button>
                 </Link>
                 </div>
                
-            </div>
+            </form>
             <toastContainer position="top-right"/>
         </div>
     );

@@ -10,18 +10,17 @@ const Message = ({message:{user,text},name}) => {
     return ( 
         <div className="p-2">
     {isSentByCurrentUser ? ( 
-        <div className="flex gap-4 justify-end">
-            <p className=" bg-green-600">{text}</p>
-            <div>
-            <p>: {trimmedName}</p>
-            </div>
+        <div className="flex justify-end">
+        <div className="flex gap-2 justify-end w-2/3 ">
+            <p className=" bg-green-600 p-2 rounded-lg w-5/6 text-white break-words">{text}</p>
+            
+        </div>
         </div>
     ):(
-        <div className="flex gap-4 ">
-           
-            <p>{user} : </p>
-            <div>
-                <p className=" bg-red-700">{text}</p>
+        <div className="flex gap-3  ">
+            <p className=" font-bold items-center flex">{user} : </p>
+            <div className="w-3/5">
+                <p className=" bg-red-700 p-2 rounded-lg text-left w-5/6 text-white break-words">{text}</p>
             </div>
         </div>
     )}</div>

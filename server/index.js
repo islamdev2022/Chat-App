@@ -13,27 +13,35 @@ const io = socketio(server, {
         credentials: true
     }
 });
-const router = require('./router');
-const PORT = process.env.PORT || 5000;
 
+const router = require('./router');
 const { addUser, removeUser, getUser, getUsersInRoom } = require('./users');
+const PORT = process.env.PORT || 5000;
 
 app.use(cors());
 app.use(router);
 
-io.on('connection', (socket) => { 
+io.on('connection', (socket) => {
     console.log('We have a new connection!!!', socket.id);
-    
+
     socket.on('join', ({ name, room }, callback) => {
-        console.log('User joined with details:', { name, room });
+        console.log('User joining:', { name, room });
         const { error, user } = addUser({ id: socket.id, username: name, room });
 
-        if (error) return callback(error);
+        if (error) {
+            console.error('Join error:', error);
+            return callback(error);
+        }
 
-        socket.emit('message', { user: 'admin', text: `${user.username}, welcome to the room ${user.room}` });
-        socket.broadcast.to(user.room).emit('message', { user: 'admin', text: `${user.username} has joined!` });
+        console.log('User joined:', user);
+        console.log('Current users:', getUsersInRoom(room));
+
         socket.join(user.room);
 
+        socket.emit('message', { user: 'Admin', text: `${user.username}, welcome to the room ${user.room}` });
+        socket.broadcast.to(user.room).emit('message', { user: 'admin', text: `${user.username} has joined!` });
+
+        io.to(user.room).emit('roomData', { room: user.room, users: getUsersInRoom(user.room) });
         callback();
     });
 
@@ -54,6 +62,7 @@ io.on('connection', (socket) => {
 
         if (user) {
             io.to(user.room).emit('message', { user: 'admin', text: `${user.username} has left.` });
+            io.to(user.room).emit('roomData', { room: user.room, users: getUsersInRoom(user.room) });
         }
         console.log('User has left!!!', socket.id);
     });
