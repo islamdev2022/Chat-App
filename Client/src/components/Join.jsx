@@ -2,18 +2,38 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import {toast,ToastContainer} from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import axios from 'axios';
 const Join = () => {
     const [name, setName] = useState('');
     const [room, setRoom] = useState('');
-
+    const [rooms, setRooms] = useState([]);
+  const [newRoom, setNewRoom] = useState('');
+  const [isCreatingRoom, setIsCreatingRoom] = useState(false);
     useEffect(() => {
-        console.log('join');
-    }, []);
+        // Fetch available rooms from the server
+        axios.get('http://localhost:5000/rooms')
+          .then(response => {
+            setRooms(response.data);
+          })
+          .catch(error => {
+            console.error('There was an error fetching the rooms!', error);
+          });
+      }, []);
+
+      const handleRoomChange = (event) => {
+        const selectedRoom = event.target.value;
+        if (selectedRoom === 'newRoom') {
+          setIsCreatingRoom(true);
+          setRoom('');
+        } else {
+          setIsCreatingRoom(false);
+          setRoom(selectedRoom);
+        }
+      };
 
     function emptyFields() {
         if (!name || !room) {
-            toast.error('Please fill in all fields');
-            console.log('Please fill in all fields');
+            alert('Please fill in all fields');
             return true;
         }
     }
@@ -31,23 +51,37 @@ const Join = () => {
                     />
                 </div>
                 <div>
-                    <input 
-                    className='p-2 outline-slate-500 border rounded'
-                        type="text" 
-                        onChange={(e) => setRoom(e.target.value)} 
-                        placeholder="Room Name" 
-                    />
-                </div>
-                <div>
-                     <Link 
-                    onClick={e => (!name || !room) ? e.preventDefault() : null} 
-                    to={`/chat?name=${name}&room=${room}`}
-                >
-                    <button className="bg-blue-700 hover:bg-blue-600 text-white font-bold py-1 text-lg px-4 rounded-md shadow-xl" onClick={emptyFields}>
-                        Sign In
-                    </button>
-                </Link>
-                </div>
+          <select
+            className=" cursor-pointer p-2 outline-slate-500 w-full text-slate-400 border rounded"
+            value={room}
+            onChange={handleRoomChange}
+          >
+            <option value="" disabled>Select a room</option>
+            {rooms.map((room) => (
+              <option key={room} value={room}>{room}</option>
+            ))}
+            <option value="newRoom">Create a new room</option>
+          </select>
+        </div>
+        {isCreatingRoom && (
+          <div>
+            <input
+              placeholder="New Room Name"
+              className="p-2 outline-slate-500 border rounded"
+              type="text"
+              onChange={(event) => setNewRoom(event.target.value)}
+            />
+          </div>
+        )}
+        <div>
+             <Link
+          onClick={e => (!name || (!room && !newRoom)) ? e.preventDefault() : null}
+          to={`/chat?name=${name}&room=${isCreatingRoom ? newRoom : room}`}
+        >
+          <button className={'bg-blue-700 hover:bg-blue-600 text-white font-bold py-1 text-lg px-4 rounded-md shadow-xl'} type="submit" onClick={emptyFields}>Sign In</button>
+        </Link>
+        </div>
+       
                
             </form>
             <toastContainer position="top-right"/>
