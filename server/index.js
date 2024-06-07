@@ -15,11 +15,15 @@ const io = socketio(server, {
 });
 
 app.use(cors());
-app.use(express.static(path.join(__dirname, 'client/dist')));
-
 app.get('/rooms', (req, res) => {
   res.json(getRooms());
 });
+
+app.use("/" ,(req, res) => {
+  res.send("Server is up and running.");
+})
+
+
 
 io.on('connection', (socket) => {
   console.log('We have a new connection!!!', socket.id);
@@ -62,9 +66,6 @@ io.on('connection', (socket) => {
   });
 });
 
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'client/dist', 'index.html'));
-});
 
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => console.log(`Server running on port ${PORT}`));

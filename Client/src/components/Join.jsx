@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import {toast,ToastContainer} from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import axios from 'axios';
 const Join = () => {
@@ -84,7 +83,6 @@ const Join = () => {
        
                
             </form>
-            <toastContainer position="top-right"/>
         </div>
     );
 }
