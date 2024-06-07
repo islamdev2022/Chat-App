@@ -27,13 +27,13 @@ const InfoBar = ({room  ,users,name}) => {
         <div className="">
 
         
-        <div className="cursor-pointer" onClick={toggleOnlineUsers} ><img src="/src/assets/Screenshot 2024-06-01 233050.png" alt="zerze" className="rounded-full w-3" /></div>
+        <div className="cursor-pointer" onClick={toggleOnlineUsers} ><img src="Screenshot 2024-06-01 233050.png" alt="zerze" className="rounded-full w-3" /></div>
         {isOpen && (
             <div ref={onlineRef} className=" bg-blue-300 absolute z-10 rounded-lg px-3">
                 <p className=" font-bold">Online users : </p>                
                 {users && users.map(user => (
                     <span key={user.id} className="text-black flex p-1 items-center gap-2 font-semibold rounded text-sm">
-                        <img src="/src/assets/Screenshot 2024-06-01 233050.png" alt="zerze" className="rounded-full w-2 h-2" />{user.username}
+                        <img src="Screenshot 2024-06-01 233050.png" alt="zerze" className="rounded-full w-2 h-2" />{user.username}
                     </span>
                 ))}</div>
 
