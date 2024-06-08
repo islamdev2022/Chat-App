@@ -13,7 +13,7 @@ const Chat = () => {
     const [message, setMessage] = useState('');
     const [messages, setMessages] = useState([]);
     const [users, setUsers] = useState([]);
-    const ENDPOINT = 'http://localhost:5000';
+    const ENDPOINT = 'https://chat-app-server-eight-liard.vercel.app';
 
     useEffect(() => {
         const { name, room } = queryString.parse(window.location.search);

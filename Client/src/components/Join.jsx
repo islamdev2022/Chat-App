@@ -10,7 +10,7 @@ const Join = () => {
   const [isCreatingRoom, setIsCreatingRoom] = useState(false);
     useEffect(() => {
         // Fetch available rooms from the server
-        axios.get('http://localhost:5000/rooms')
+        axios.get('https://chat-app-server-eight-liard.vercel.app/rooms')
           .then(response => {
             setRooms(response.data);
           })
