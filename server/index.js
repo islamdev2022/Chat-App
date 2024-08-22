@@ -19,6 +19,10 @@ app.get('/rooms', (req, res) => {
   res.json(getRooms());
 });
 
+app.get('/ping', (req, res) => {
+  res.send('pong');
+});
+
 app.use("/" ,(req, res) => {
   res.send("Server is up and running.");
 })
