@@ -327,15 +327,15 @@ const decryptMessage = useCallback((encryptedData, senderPublicKey) => {
 
     // UI Rendering
     return (
-        <div className='flex justify-center h-screen items-center text-center bg-slate-200 w-full'>
-            <div className='md:h-2/3 h-full w-full md:w-96 flex flex-col justify-between bg-white rounded-xl'>
-                <InfoBar room={room} name={name} users={users} />
-                <div className='flex flex-col h-full'>
-                    <Messages messages={messages} name={name} />
-                    <Input message={message} setMessage={setMessage} sendMessage={sendMessage} />
-                </div>
-            </div>
+        <div className="flex w-full justify-center min-h-screen bg-gradient-to-br from-slate-100 to-slate-200 sm:p-4">
+      <div className="w-full max-w-md sm:max-w-lg md:max-w-xl h-[98vh] sm:h-[90vh] flex flex-col sm:rounded-xl shadow-lg overflow-hidden bg-white border border-slate-200">
+        <InfoBar room={room} name={name} users={users} />
+        <div className="flex-1 flex flex-col h-full overflow-hidden">
+          <Messages messages={messages} name={name} />
+          <Input message={message} setMessage={setMessage} sendMessage={sendMessage} />
         </div>
+      </div>
+    </div>
     );
 };
 

@@ -1,30 +1,31 @@
-const Message = ({message:{user,text},name}) => {
-    let isSentByCurrentUser = false;
-
-    const trimmedName = name.trim().toLowerCase();
-
-    if(user === trimmedName) {
-        isSentByCurrentUser = true;
-    }
-
-    return ( 
-        <div className="p-2">
-    {isSentByCurrentUser ? ( 
-        <div className="flex justify-end">
-        <div className="flex gap-2 justify-end w-2/3 ">
-            <p className=" bg-green-600 p-2 rounded-lg w-5/6 text-white break-words">{text}</p>
-            
-        </div>
-        </div>
-    ):(
-        <div className="flex gap-3  ">
-            <p className=" font-bold items-center flex">{user} : </p>
-            <div className="w-3/5">
-                <p className=" bg-red-700 p-2 rounded-lg text-left w-5/6 text-white break-words">{text}</p>
+const Message = ({ message: { user, text }, name }) => {
+    const isSentByCurrentUser = user === name.trim().toLowerCase()
+  
+    if (isSentByCurrentUser) {
+      return (
+        <div className="flex justify-end mb-2 pr-4">
+          <div className="max-w-[80%]">
+            <div className="bg-gradient-to-r from-indigo-500 to-purple-500 text-white p-3 rounded-2xl rounded-tr-sm shadow-sm">
+              <p className="text-sm break-words">{text}</p>
             </div>
+            <span className="text-xs text-slate-500 mt-1 block text-right pr-1">You</span>
+          </div>
         </div>
-    )}</div>
-     );
-}
- 
-export default Message;
+      )
+    } else {
+      return (
+        <div className="flex mb-2">
+          <div className="max-w-[80%]">
+            <div className="bg-slate-100 p-3 rounded-2xl rounded-tl-sm shadow-sm">
+              <p className="text-sm break-words text-slate-800">{text}</p>
+            </div>
+            <span className="text-xs text-slate-500 mt-1 block pl-1">{user}</span>
+          </div>
+        </div>
+      )
+    }
+  }
+  
+  export default Message
+  
+  

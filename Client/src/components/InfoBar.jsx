@@ -1,60 +1,73 @@
-import { IoCloseCircleOutline } from "react-icons/io5";
-import { useState,useEffect } from "react";
-import { useRef } from "react";
-const InfoBar = ({room  ,users,name}) => {
-    const onlineRef=useRef();
-    const [isOpen, setIsOpen] = useState(false);
+import { useState, useEffect, useRef } from "react"
+import { X, Users, ChevronDown } from "lucide-react"
 
-    const toggleOnlineUsers = () => {
-        setIsOpen(!isOpen);
-    };
-    useEffect(() => {
-        function handleClickOutside(event) {
-          if (onlineRef.current && !onlineRef.current.contains(event.target)) {
-            setIsOpen(false);
-          }
-        }
-    
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => {
-          document.removeEventListener('mousedown', handleClickOutside);
-        };
-      }, []);
-    return ( 
-    <div className="">
-    <div className=" flex justify-between h-12 bg-blue-600 items-center px-3 rounded-t-xl">
-    <div className="flex">
-        <div className="">
+const InfoBar = ({ room, users, name }) => {
+  const onlineRef = useRef()
+  const [isOpen, setIsOpen] = useState(false)
 
-        
-        <div className="cursor-pointer" onClick={toggleOnlineUsers} ><img src="Screenshot 2024-06-01 233050.png" alt="zerze" className="rounded-full w-3" /></div>
-        {isOpen && (
-            <div ref={onlineRef} className=" bg-blue-300 absolute z-10 rounded-lg px-3">
-                <p className=" font-bold">Online users : </p>                
-                {users && users.map(user => (
-                    <span key={user.id} className="text-black flex p-1 items-center gap-2 font-semibold rounded text-sm">
-                        <img src="Screenshot 2024-06-01 233050.png" alt="zerze" className="rounded-full w-2 h-2" />{user.username}
-                    </span>
-                ))}</div>
+  const toggleOnlineUsers = () => {
+    setIsOpen(!isOpen)
+  }
 
-        )}
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (onlineRef.current && !onlineRef.current.contains(event.target)) {
+        setIsOpen(false)
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside)
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside)
+    }
+  }, [])
+
+  return (
+    <div className="border-b border-slate-200">
+      <div className="flex justify-between items-center px-3 sm:px-4 py-2 sm:py-3 bg-gradient-to-r from-indigo-600 to-purple-600">
+        <div className="relative">
+          <button
+            onClick={toggleOnlineUsers}
+            className="flex items-center gap-1 text-white/90 hover:text-white transition-colors px-2 py-1 rounded-md hover:bg-white/10"
+          >
+            <Users size={16} />
+            <span className="text-sm font-medium hidden sm:inline">Online</span>
+            <ChevronDown size={14} className={`transition-transform ${isOpen ? "rotate-180" : ""}`} />
+          </button>
+
+          {isOpen && (
+            <div
+              ref={onlineRef}
+              className="absolute top-full left-0 mt-1 bg-white rounded-lg shadow-lg border border-slate-200 w-48 z-10 overflow-hidden"
+            >
+              <div className="p-2 bg-slate-50 border-b border-slate-200">
+                <p className="font-semibold text-sm text-slate-700">Online Users ({users?.length || 0})</p>
+              </div>
+              <div className="max-h-48 overflow-y-auto p-1 custom-scrollbar">
+                {users &&
+                  users.map((user) => (
+                    <div key={user.id} className="flex items-center gap-2 p-2 hover:bg-slate-50 rounded-md">
+                      <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                      <span className="text-sm font-medium text-slate-700">{user.username}</span>
+                    </div>
+                  ))}
+              </div>
+            </div>
+          )}
         </div>
-       
-        
-    </div>
-    <div>
-        <h3 className="font-bold uppercase text-white" >{room}</h3>
-        <p className="text-white">"{name}"</p>
-    </div>
-     
-    <div>
-        
-        <a href="/">
-            <IoCloseCircleOutline className="text-white text-2xl" />
-        </a>
 
+        <div className="text-center">
+          <h3 className="font-bold uppercase text-white text-sm tracking-wide">{room}</h3>
+          <p className="text-white/80 text-xs hidden sm:block">{name}</p>
+        </div>
+
+        <a href="/" className="text-white/80 hover:text-white transition-colors p-1 rounded-full hover:bg-white/10">
+          <X size={20} />
+        </a>
+      </div>
     </div>
-    </div></div> );
+  )
 }
- 
-export default InfoBar;
+
+export default InfoBar
+
