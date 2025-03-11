@@ -1,7 +1,7 @@
 let users = [];
 let rooms = new Set();
 
-const addUser = ({ id, username, room }) => {
+const addUser = ({ id, username, room, publicKey }) => {
   username = username.trim().toLowerCase();
   room = room.trim().toLowerCase();
 
@@ -10,7 +10,7 @@ const addUser = ({ id, username, room }) => {
   if (!username || !room) return { error: 'Username and room are required.' };
   if (existingUser) return { error: 'Username is already taken.' };
 
-  const user = { id, username, room };
+  const user = { id, username, room, publicKey };
   users.push(user);
   rooms.add(room);
 
@@ -36,4 +36,21 @@ const getUsersInRoom = (room) => users.filter((user) => user.room === room);
 
 const getRooms = () => Array.from(rooms);
 
-module.exports = { addUser, removeUser, getUser, getUsersInRoom, getRooms };
+const getPublicKeysInRoom = (room) => {
+  const publicKeys = {};
+  users
+    .filter((user) => user.room === room)
+    .forEach((user) => {
+      publicKeys[user.username] = user.publicKey;
+    });
+  return publicKeys;
+};
+
+module.exports = { 
+  addUser, 
+  removeUser, 
+  getUser, 
+  getUsersInRoom, 
+  getRooms,
+  getPublicKeysInRoom 
+};
