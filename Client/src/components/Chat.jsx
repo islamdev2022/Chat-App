@@ -49,6 +49,8 @@ const Chat = () => {
         return newKeyPair;
     }, [name, room]);
 
+    console.log("keyPair", keyPair)
+
     // Derive a shared secret and encrypt using AES
 const encryptMessage = useCallback((text, recipientPublicKey) => {
     try {

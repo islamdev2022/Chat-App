@@ -16,13 +16,13 @@
   }
   
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-    background: #555;
+    background: #aaaaaa;
   }
   
   /* For Firefox */
   .custom-scrollbar {
-    scrollbar-width: thin;
-    scrollbar-color: #566a9e #5153f5;
+    scrollbar-width: none;
+    scrollbar-color: #566a9e #9798fc;
   }
   
   /* Hide scrollbar for Chrome, Safari and Opera */

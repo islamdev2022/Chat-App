@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import axios from "axios"
 import { Users, Plus, LogIn, AlertCircle } from "lucide-react"
 import { Link } from "react-router-dom"
-const Join = () => {
+const JoinPTP = () => {
   const [name, setName] = useState("")
   const [room, setRoom] = useState("")
   const [rooms, setRooms] = useState([])
@@ -111,7 +111,7 @@ const Join = () => {
     <div className="flex justify-center items-center min-h-screen p-4">
       <div className="w-full max-w-md">
         <form onSubmit={handleSubmit} className="bg-white shadow-2xl rounded-2xl px-8 pt-6 pb-8 mb-4">
-          <h2 className="text-3xl font-bold text-center mb-6 text-indigo-800">Join a Chat</h2>
+          <h2 className="text-3xl font-bold text-center mb-6 text-indigo-800">Join a Chat Peer to Peer</h2>
 
           <div className="mb-6">
             <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="username">
@@ -194,7 +194,7 @@ const Join = () => {
           <div className="flex items-center justify-center">
           <Link
       onClick={e => (!name || (!room && !newRoom)) ? e.preventDefault() : null}
-      to={`/chat?name=${name}&room=${isCreatingRoom ? newRoom : room}`}
+      to={`/chatP2P?name=${name}&room=${isCreatingRoom ? newRoom : room}`}
               className="w-full">
             <button
               className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-bold py-3 px-4 rounded-lg focus:outline-none focus:shadow-outline transition-all duration-200 flex items-center justify-center disabled:opacity-50"
@@ -213,5 +213,5 @@ const Join = () => {
   )
 }
 
-export default Join
+export default JoinPTP
 
