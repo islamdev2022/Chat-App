@@ -1,19 +1,50 @@
-let users = [];
-let rooms = new Set();
+const users = [];
+const rooms = new Map(); // Track rooms with active users
 
 const addUser = ({ id, username, room, publicKey }) => {
-  username = username.trim().toLowerCase();
-  room = room.trim().toLowerCase();
+  // Validate inputs
+  if (!id) return { error: 'Socket ID is required' };
+  
+  // Handle undefined or empty values with defaults
+  const processedUsername = username ? username.trim().toLowerCase() : `user-${id.substring(0, 5)}`;
+  const processedRoom = room ? room.trim().toLowerCase() : 'default-room';
+  
+  // Check if user already exists
+  const existingUser = users.find(
+    (user) => user.room === processedRoom && user.username === processedUsername
+  );
 
-  const existingUser = users.find((user) => user.room === room && user.username === username);
+  if (existingUser) {
+    return { error: 'Username is taken' };
+  }
 
-  if (!username || !room) return { error: 'Username and room are required.' };
-  if (existingUser) return { error: 'Username is already taken.' };
-
-  const user = { id, username, room, publicKey };
+  // Create user
+  const user = { 
+    id, 
+    username: processedUsername, 
+    room: processedRoom, 
+    publicKey: publicKey
+  };
+  
   users.push(user);
-  rooms.add(room);
-
+  
+  // Update room tracking
+  if (!rooms.has(processedRoom)) {
+    rooms.set(processedRoom, {
+      name: processedRoom,
+      createdAt: new Date().toISOString(),
+      userCount: 0
+    });
+  }
+  
+  // Increment user count in room
+  const roomInfo = rooms.get(processedRoom);
+  roomInfo.userCount += 1;
+  rooms.set(processedRoom, roomInfo);
+  
+  console.log(`Added user: ${user.username} to room: ${user.room}`);
+  console.log(`Active rooms: ${Array.from(rooms.keys()).join(', ')}`);
+  
   return { user };
 };
 
@@ -22,10 +53,21 @@ const removeUser = (id) => {
 
   if (index !== -1) {
     const user = users.splice(index, 1)[0];
-    const usersInRoom = users.filter((user) => user.room === user.room);
-    if (usersInRoom.length === 0) {
-      rooms.delete(user.room);
+    
+    // Update room tracking when user leaves
+    if (user && user.room && rooms.has(user.room)) {
+      const roomInfo = rooms.get(user.room);
+      roomInfo.userCount -= 1;
+      
+      // Remove room if empty
+      if (roomInfo.userCount <= 0) {
+        rooms.delete(user.room);
+        console.log(`Room deleted: ${user.room} (no users)`);
+      } else {
+        rooms.set(user.room, roomInfo);
+      }
     }
+    
     return user;
   }
 };

@@ -17,7 +17,7 @@ const server = http.createServer(app);
 const io = socketio(server, {
   cors: {
     origin: "*",
-    methods: ["GET", "POST"]
+    methods: ["GET", "POST"],
   }
 });
 
@@ -38,16 +38,40 @@ io.on('connection', (socket) => {
   console.log('We have a new connection!!!', socket.id);
 
   socket.on('join', ({ name, room, publicKey }, callback) => {
-    console.log('User joined with details:', { name, room });
+    console.log('User attempting to join:', { name, room, socketId: socket.id });
     const { error, user } = addUser({ 
       id: socket.id, 
       username: name, 
       room, 
       publicKey 
     });
+    if (error) {
+      console.error('Join error:', error);
+      if (callback) return callback(error);
+      return;
+    }
 
-    if (error) return callback(error);
+    socket.join(user.room);
+    // console.log(`Socket ${socket.id} with name ${name} joined room: ${user.room}`);
+    console.log('Users in room:', getUsersInRoom(user.room));
+    console.log("here it deleted the user", user);  
+    // socket.to(user.room).emit('join', socket.id); // the user get deleted here why ?
+    console.log(`User ${name} joined room ${room}`);
+    if (callback) {
+      // console.log(callback)
+      console.log('Join callback:', user);
+      callback();}
 
+    socket.on('signal', ({ to, signal }) => {
+      console.log(`Signal from ${socket.id} to ${to}`);
+      io.to(to).emit('signal', { to: socket.id, signal });
+    });
+
+    if (error) {
+      console.log('Join error:', error);
+      return callback(error);}
+    
+      console.log('Join success:', user);
     socket.join(user.room);
 
     // Welcome message for the new user
