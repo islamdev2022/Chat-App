@@ -19,7 +19,7 @@ const Chat = () => {
     const [users, setUsers] = useState([]);
     const [keyPair, setKeyPair] = useState(null);
     const [publicKeys, setPublicKeys] = useState({});
-    const ENDPOINT = 'http://localhost:5000/';
+    const ENDPOINT = import.meta.env.VITE_SERVER_URL
 
     // Generate or retrieve key pair
     const generateKeyPair = useCallback(() => {

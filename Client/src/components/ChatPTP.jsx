@@ -63,11 +63,12 @@ const ChatPTP = () => {
           socket.emit = originalEmit;
         };
     };
+    let MainUrl = import.meta.env.VITE_SERVER_URL
 
     useEffect(() => {
         // Initialize socket connection
         if (!socketRef.current) {
-            socketRef.current = io("http://localhost:5000");
+            socketRef.current = io(MainUrl);
             socket = socketRef.current;
         }
 
@@ -306,7 +307,7 @@ peer._pc.addEventListener('iceconnectionstatechange', () => {
         }
         
         peersRef.current[peerId] = peer;
-        setPeers((prev) => ({ ...prev, [peerId]: peer }));
+        setPeers((prev) => ({ ...prev, [peerId]: peers }));
     };
 
     // Encrypt message

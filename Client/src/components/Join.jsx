@@ -1,5 +1,3 @@
-"use client"
-
 import { useState, useEffect } from "react"
 import axios from "axios"
 import { Users, Plus, LogIn, AlertCircle } from "lucide-react"
@@ -12,10 +10,10 @@ const Join = () => {
   const [isCreatingRoom, setIsCreatingRoom] = useState(false)
   const [errors, setErrors] = useState({})
   const [isSubmitting, setIsSubmitting] = useState(false)
-
+let MainUrl = import.meta.env.VITE_SERVER_URL
   useEffect(() => {
     axios
-      .get("http://localhost:5000/rooms")
+      .get(`${MainUrl}/rooms`)
       .then((response) => {
         setRooms(response.data)
       })

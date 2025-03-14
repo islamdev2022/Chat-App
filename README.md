@@ -70,13 +70,6 @@ The Socket.io server is only used for signaling (initial connection and public k
 3. **Join or Create a Room**: Select an existing room or create a new one.
 4. **Start Chatting**: Send encrypted messages to everyone in the room.
 
-## Deployment
-
-The application is designed to work with serverless architecture on Vercel:
-1. Create an `/api` directory with serverless functions for each route.
-2. Update client endpoints to point to your deployed API.
-3. Deploy using the Vercel CLI.
-
 ## Limitations
 
 - P2P connections may not work behind certain NATs or corporate firewalls.

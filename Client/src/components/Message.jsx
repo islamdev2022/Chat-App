@@ -26,11 +26,6 @@ const Message = ({ message: { user, text }, name }) => {
   };
 
   console.log(displayText());
-  
-    console.log('user:', user)
-  console.log('name:', name)
-  console.log('isSentByCurrentUser:', isSentByCurrentUser)
-  console.log(text.text)
     if (isSentByCurrentUser) {
       return (
         <div className="flex justify-end mb-2 pr-4">
