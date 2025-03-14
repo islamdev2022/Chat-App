@@ -34,7 +34,6 @@ const Chat = () => {
                 return loadedKeyPair;
             } catch (error) {
                 console.error('Error loading stored key:', error);
-                // Fall through to generate a new key
             }
         }
         
