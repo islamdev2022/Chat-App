@@ -1,524 +1,574 @@
-import React, { useState, useEffect, useRef } from "react";
-import io from "socket.io-client";
-import SimplePeer from "simple-peer";
-import CryptoJS from "crypto-js";
-import elliptic from "elliptic";
-import InfoBar from './InfoBar';
-import Input from './Input';
-import Messages from './Messages';
-import queryString from 'query-string';
-
-const EC = new elliptic.ec("secp256k1");
-let socket = null; // Initialize socket later to avoid connection issues
+import { useEffect, useRef, useState } from "react";
+import Peer from "peerjs";
+import * as ScrollArea from '@radix-ui/react-scroll-area';
+import { io } from "socket.io-client";
+import ScrollToBottom from "react-scroll-to-bottom"
 
 const ChatPTP = () => {
-    const [name, setName] = useState("");
-    const [room, setRoom] = useState("");
-    const [message, setMessage] = useState("");
-    const [messages, setMessages] = useState([]);
-    const [users, setUsers] = useState([]);
-    const [peers, setPeers] = useState({});
-    const [publicKeys, setPublicKeys] = useState({});
-    const [connected, setConnected] = useState(false);
-    // Track connection status of each peer
-    const [peerConnectionStatus, setPeerConnectionStatus] = useState({});
-    const keyPair = useRef(EC.genKeyPair());  // Generate key pair
-    const peersRef = useRef({});
-    const myPublicKey = useRef(keyPair.current.getPublic("hex"));
-    const socketRef = useRef(null);
-    const hasPeerKeysRef = useRef(false);  // Track if we have all peer public keys
-
-    const setupSocketDebug = (socket) => {
-        // Define all the socket events you want to track
-        const socketEvents = [
-          'connect', 
-          'disconnect', 
-          'connect_error',
-          'join',
-          'signal',
-          'message',
-          'roomData',
-          'publicKeys'
-        ];
-      
-        // Create debug listeners for each event
-        socketEvents.forEach(event => {
-          socket.on(event, (...args) => {
-            console.log(`[SOCKET:${event}]`, ...args);
-          });
-        });
-      
-        // Track emit calls
-        const originalEmit = socket.emit;
-        socket.emit = function(event, ...args) {
-          console.log(`[SOCKET EMIT:${event}]`, ...args);
-          return originalEmit.apply(this, [event, ...args]);
-        };
-      
-        return () => {
-          // Cleanup function
-          socketEvents.forEach(event => {
-            socket.off(event);
-          });
-          socket.emit = originalEmit;
-        };
-    };
-    let MainUrl = import.meta.env.VITE_SERVER_URL
-
-    useEffect(() => {
-        // Initialize socket connection
-        if (!socketRef.current) {
-            socketRef.current = io(MainUrl);
-            socket = socketRef.current;
-        }
-
-        const cleanupDebug = setupSocketDebug(socket);
-        
-        // Parse URL parameters with fallbacks
-        const { name, room } = queryString.parse(window.location.search);
-        
-        // Validate parameters exist, otherwise use defaults
-        const validName = name || "Anonymous";
-        const validRoom = room || "DefaultRoom";
-
-        console.log("Joining with:", { name: validName, room: validRoom });
-        
-        setName(validName);
-        setRoom(validRoom);
-
-        console.log("Public key:", myPublicKey.current);
-        
-        // Join room and share public key
-        socket.emit("join", { 
-            name: validName, 
-            room: validRoom, 
-            publicKey: myPublicKey.current 
-        }, (error) => {
-            if (error) {
-                console.error("Join error:", error);
-                setMessages(prev => [...prev, { 
-                    user: "System", 
-                    text: `Error joining room: ${error}` 
-                }]);
-            } else {
-                setConnected(true);
-                console.log("Successfully joined room, requesting public keys");
-                // Request public keys only after successful join
-                socket.emit("requestPublicKeys", (error) => {
-                    if (error) {
-                        console.error("Failed to get public keys:", error);
-                        setMessages(prev => [...prev, { 
-                            user: "System", 
-                            text: `Failed to get public keys: ${error}` 
-                        }]);
-                    }
-                });
-            }
-        });
-
-        // Setup event listeners
-        socket.on("message", (message) => {
-            setMessages((prev) => [...prev, message]);
-        });
-
-        socket.on("roomData", ({ users }) => {
-            console.log("Room data updated:", users);
-            setUsers(users);
-            
-            // Check if we need to initiate connections with users already in the room
-            users.forEach(user => {
-                if (user.id !== socket.id && !peersRef.current[user.id]) {
-                    console.log(`Initiating connection to existing user: ${user.id}`);
-                    connectToPeer(user.id);
-                }
-            });
-        });
-
-        socket.on("publicKeys", (keys) => {
-            console.log("Received public keys:", keys);
-            setPublicKeys(keys);
-            hasPeerKeysRef.current = true;
-            
-            // Log if we received all expected keys
-            const userIds = users.map(user => user.id);
-            const receivedKeyIds = Object.keys(keys);
-            
-            const missingKeys = userIds.filter(id => id !== socket.id && !receivedKeyIds.includes(id));
-            if (missingKeys.length > 0) {
-                console.warn("Missing public keys for users:", missingKeys);
-                setMessages(prev => [...prev, { 
-                    user: "System", 
-                    text: `Warning: Missing public keys for some users. P2P may not work fully.` 
-                }]);
-            } else {
-                console.log("All public keys received successfully");
-                setMessages(prev => [...prev, { 
-                    user: "System", 
-                    text: `All public keys received. P2P communication ready.` 
-                }]);
-            }
-        });
-        
-        socket.on("signal", ({ from, signal }) => {
-            console.log(`Received signal from ${from}`);
-            
-            if (peersRef.current[from]) {
-                peersRef.current[from].signal(signal);
-            } else {
-                connectToPeer(from, signal);
-            }
-        });
-
-        socket.on("join", (peerId) => {
-            console.log(`New user joined: ${peerId}`);
-            if (peerId !== socket.id) {
-                connectToPeer(peerId);
-            }
-        });
-
-        return () => {
-            cleanupDebug();
-            
-            // Disconnect from all peers
-            Object.values(peersRef.current).forEach(peer => {
-                if (peer && typeof peer.destroy === 'function') {
-                    peer.destroy();
-                }
-            });
-            
-            if (socket) {
-                socket.disconnect();
-                socketRef.current = null;
-            }
-        };
-    }, []);
-
-    // Create a new P2P connection
-    const connectToPeer = (peerId, incomingSignal = null) => {
-        console.log(`Connecting to peer: ${peerId}`);
-        
-        if (peersRef.current[peerId]) {
-            console.log(`Peer connection already exists for ${peerId}`);
-            return;
-        }
-        
-        // Update connection status
-        setPeerConnectionStatus(prev => ({ 
-            ...prev, 
-            [peerId]: 'connecting' 
-        }));
-        
-        const peer = new SimplePeer({
-            initiator: !incomingSignal,
-            trickle: true,
-            config: {
-                iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
-            },
-            // This is critical for same-browser testing
-            sdpTransform: (sdp) => {
-                // Force the use of relay candidates for testing
-                return sdp.replace(/a=candidate.*typ host.*\r\n/g, '');
-            }
-        });
-
-        // Inside connectToPeer function
-peer._pc.addEventListener('iceconnectionstatechange', () => {
-    console.log(`ICE connection state for ${peerId}: ${peer._pc.iceConnectionState}`);
-    if (peer._pc.iceConnectionState === 'failed') {
-        console.error('ICE connection failed - likely a network/firewall issue');
+  // States for user info and room
+  const [username, setUsername] = useState("");
+  const [room, setRoom] = useState("");
+  const [joined, setJoined] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  
+  // States for chat
+  const [messages, setMessages] = useState([]);
+  const [inputMessage, setInputMessage] = useState("");
+  const [users, setUsers] = useState([]);
+  const [rooms, setRooms] = useState([]);
+  
+  // Refs for socket and peer connections
+  const socketRef = useRef();
+  const peerRef = useRef();
+  const peerConnections = useRef({});
+  const localId = useRef("");
+  
+  // Handle room joining
+  const joinRoom = async () => {
+    if (!username || !room) {
+      setError("Username and room name are required!");
+      return;
     }
-});
-
-        peer.on("signal", (signal) => {
-            console.log(`Sending signal to ${peerId}`);
-            socket.emit("signal", { to: peerId, signal });
-        });
-
-        const connectionTimeout = setTimeout(() => {
-            if (peerConnectionStatus[peerId] !== 'connected') {
-                console.error(`Connection to peer ${peerId} timed out after 15 seconds`);
-                setMessages(prev => [...prev, { 
-                    user: "System", 
-                    text: `P2P connection to peer timed out. Using server fallback.` 
-                }]);
-            }
-        }, 15000);
-
-        peer.on("connect", () => {
-
-            clearTimeout(connectionTimeout);
-            console.log(`Peer connection ESTABLISHED with ${peerId}`);
-            setPeerConnectionStatus(prev => ({ 
-                ...prev, 
-                [peerId]: 'connected' 
-            }));
-            
-            // Send a test message to confirm the connection works
-            try {
-                const peerPublicKey = publicKeys[peerId];
-                if (peerPublicKey) {
-                    const testMessage = encryptMessage("Connection test", peerPublicKey);
-                    peer.send(testMessage);
-                    console.log(`Sent test message to peer ${peerId}`);
-                } else {
-                    console.warn(`Cannot send test message: missing public key for ${peerId}`);
-                }
-            } catch (error) {
-                console.error(`Failed to send test message to ${peerId}:`, error);
-            }
-            
-            setMessages(prev => [...prev, { 
-                user: "System", 
-                text: `P2P connection established with ${peerId}` 
-            }]);
-        });
-
-        peer.on("data", (data) => {
-            console.log(`Received data from peer ${peerId}, length: ${data.length}`);
-            handleIncomingMessage(data, peerId);
-        });
-
-        peer.on("error", (err) => {
-            console.error(`Peer error with ${peerId}:`, err);
-            setPeerConnectionStatus(prev => ({ 
-                ...prev, 
-                [peerId]: 'error' 
-            }));
-            
-            setMessages(prev => [...prev, { 
-                user: "System", 
-                text: `P2P connection error with ${peerId}: ${err.message}` 
-            }]);
-        });
-
-        peer.on("close", () => {
-            console.log(`Peer connection closed with ${peerId}`);
-            setPeerConnectionStatus(prev => ({ 
-                ...prev, 
-                [peerId]: 'closed' 
-            }));
-            
-            // Remove from peersRef
-            delete peersRef.current[peerId];
-        });
-
-        if (incomingSignal) {
-            peer.signal(incomingSignal);
-        }
+    
+    setLoading(true);
+    setError("");
+    
+    try {
+      // Initialize peer
+      peerRef.current = new Peer();
+      
+      peerRef.current.on("open", (id) => {
+        localId.current = id;
+        console.log("PeerJS ID:", id);
         
-        peersRef.current[peerId] = peer;
-        setPeers((prev) => ({ ...prev, [peerId]: peers }));
-    };
-
-    // Encrypt message
-    const encryptMessage = (text, recipientKey) => {
+        // Connect to socket server
+        socketRef.current = io("http://localhost:5000");
+        
+        // Handle socket connection
+        socketRef.current.on("connect", () => {
+          console.log("Connected to signaling server");
+          
+          // Join room
+          socketRef.current.emit("join", {
+            name: username,
+            room: room,
+            publicKey: id // Using Peer ID as public key
+          }, (error) => {
+            if (error) {
+              setError(error);
+              setLoading(false);
+              return;
+            }
+            
+            setJoined(true);
+            setLoading(false);
+          });
+        });
+        
+        // Socket event handlers
+        setupSocketEventHandlers();
+      });
+      
+      // Handle peer errors
+      peerRef.current.on("error", (err) => {
+        console.error("Peer error:", err);
+        setError(`Peer connection error: ${err.message}`);
+      });
+      
+      // Setup peer event handlers
+      setupPeerEventHandlers();
+      
+    } catch (err) {
+      console.error("Join error:", err);
+      setError(`Error joining room: ${err.message}`);
+      setLoading(false);
+    }
+  };
+  
+  const setupSocketEventHandlers = () => {
+    if (!socketRef.current) return;
+    
+    // Handle incoming messages from socket
+    socketRef.current.on("message", (message) => {
+      console.log("Received message:", message);
+      
+      // Handle regular messages
+      if (!message.encrypted) {
+        setMessages((prevMessages) => [
+          ...prevMessages,
+          {
+            id: prevMessages.length + 1,
+            user: message.user,
+            text: message.text,
+            isAdmin: message.user === "admin" || message.user === "Admin"
+          }
+        ]);
+      } else {
+        // For demo purposes - in a real app you'd decrypt these
+        console.log("Received encrypted message, handling via direct P2P connection");
+      }
+    });
+    
+    // Handle room data updates
+    socketRef.current.on("roomData", ({ room, users: roomUsers }) => {
+      console.log("Room data updated:", { room, users: roomUsers });
+      setUsers(roomUsers);
+      
+      // Connect to all peers in the room
+      roomUsers.forEach((user) => {
+        if (user.id !== socketRef.current.id && user.publicKey) {
+          connectToPeer(user.publicKey, user.username);
+        }
+      });
+    });
+    
+    // Handle public keys (peer IDs)
+    socketRef.current.on("publicKeys", (publicKeys) => {
+      console.log("Received public keys:", publicKeys);
+      
+      // Connect to peers using their public keys (which are peer IDs)
+      Object.entries(publicKeys).forEach(([username, peerId]) => {
+        if (peerId !== localId.current) {
+          connectToPeer(peerId, username);
+        }
+      });
+    });
+    
+    // Handle signals for WebRTC
+    socketRef.current.on("signal", ({ to, signal }) => {
+      console.log("Received signal from:", to);
+      // Handle signaling if needed
+    });
+  };
+  
+  const setupPeerEventHandlers = () => {
+    if (!peerRef.current) return;
+    
+    // Handle incoming connections
+    peerRef.current.on("connection", (connection) => {
+      const peerId = connection.peer;
+      console.log("Incoming connection from peer:", peerId);
+      
+      // Store the connection
+      peerConnections.current[peerId] = connection;
+      
+      // Handle data
+      connection.on("data", (data) => {
+        console.log("Received P2P data:", data);
+        // Process the incoming message
         try {
-            const sharedSecret = keyPair.current.derive(
-                EC.keyFromPublic(recipientKey, "hex").getPublic()
-            );
-            const sharedKeyHex = sharedSecret.toString(16);
-            const sharedKey = CryptoJS.SHA256(sharedKeyHex).toString();
-
-            const iv = CryptoJS.lib.WordArray.random(16);
-            const encrypted = CryptoJS.AES.encrypt(text, CryptoJS.enc.Hex.parse(sharedKey), {
-                iv,
-                mode: CryptoJS.mode.CBC,
-                padding: CryptoJS.pad.Pkcs7,
-            });
-
-            return JSON.stringify({ 
-                iv: iv.toString(CryptoJS.enc.Base64), 
-                data: encrypted.toString() 
-            });
-        } catch (error) {
-            console.error("Encryption failed:", error);
-            return JSON.stringify({ error: "Encryption failed" });
+          const msgData = typeof data === "string" ? JSON.parse(data) : data;
+          
+          setMessages((prevMessages) => [
+            ...prevMessages,
+            {
+              id: prevMessages.length + 1,
+              user: msgData.sender || "Unknown",
+              text: msgData.text || data,
+              isP2P: true
+            }
+          ]);
+        } catch (err) {
+          console.error("Error processing message:", err);
+          // Fallback for simple string messages
+          setMessages((prevMessages) => [
+            ...prevMessages,
+            {
+              id: prevMessages.length + 1,
+              user: "Unknown",
+              text: String(data),
+              isP2P: true
+            }
+          ]);
         }
-    };
-
-    // Decrypt message
-    const decryptMessage = (encryptedData, senderKey) => {
+      });
+      
+      // Handle connection close
+      connection.on("close", () => {
+        console.log("Connection closed with peer:", peerId);
+        delete peerConnections.current[peerId];
+      });
+      
+      // Handle errors
+      connection.on("error", (err) => {
+        console.error("Connection error with peer:", peerId, err);
+      });
+    });
+  };
+  
+  const connectToPeer = (peerId, peerUsername) => {
+    // Skip if already connected or trying to connect to self
+    if (
+      peerConnections.current[peerId] || 
+      peerId === localId.current || 
+      !peerRef.current
+    ) {
+      return;
+    }
+    
+    console.log(`Connecting to peer: ${peerUsername} (${peerId})`);
+    
+    try {
+      // Create a connection to the peer
+      const connection = peerRef.current.connect(peerId, {
+        reliable: true
+      });
+      
+      // Store the connection with metadata
+      connection.metadata = { username: peerUsername };
+      
+      connection.on("open", () => {
+        console.log(`Connection established with: ${peerUsername}`);
+        peerConnections.current[peerId] = connection;
+        
+        // Send a greeting
+        connection.send(JSON.stringify({
+          sender: username,
+          text: `Hello from ${username}! Direct P2P connection established.`,
+          timestamp: new Date().toISOString()
+        }));
+      });
+      
+      // Setup data handling
+      connection.on("data", (data) => {
+        console.log("Received P2P data:", data);
+        // Process the incoming message
         try {
-            const parsed = JSON.parse(encryptedData);
-            if (parsed.error) return "Error: " + parsed.error;
-            
-            const sharedSecret = keyPair.current.derive(
-                EC.keyFromPublic(senderKey, "hex").getPublic()
-            );
-            const sharedKeyHex = sharedSecret.toString(16);
-            const sharedKey = CryptoJS.SHA256(sharedKeyHex).toString();
-
-            const decrypted = CryptoJS.AES.decrypt(parsed.data, CryptoJS.enc.Hex.parse(sharedKey), {
-                iv: CryptoJS.enc.Base64.parse(parsed.iv),
-                mode: CryptoJS.mode.CBC,
-                padding: CryptoJS.pad.Pkcs7,
-            });
-
-            return decrypted.toString(CryptoJS.enc.Utf8);
-        } catch (error) {
-            console.error("Decryption failed:", error);
-            return "ERROR: Unable to decrypt message";
-        }
-    };
-
-    // Handle receiving messages
-    const handleIncomingMessage = (data, peerId) => {
-        console.log(`Processing message from ${peerId}, data type: ${typeof data}`);
-        if (!publicKeys[peerId]) {
-            console.error(`Public key for peer ${peerId} not found`);
-            setMessages(prev => [...prev, { user: peerId, text: "ERROR: Cannot decrypt (missing public key)" }]);
-            return;
-        }
-        
-        try {
-            const dataString = typeof data === 'string' ? data : data.toString();
-            console.log(`Message data (truncated): ${dataString.substring(0, 30)}...`);
-            
-            const decryptedText = decryptMessage(dataString, publicKeys[peerId]);
-            console.log(`Decrypted message from ${peerId}: ${decryptedText}`);
-            
-            // Skip displaying test messages
-            if (decryptedText === "Connection test") {
-                console.log("Skipping display of test message");
-                return;
+          const msgData = typeof data === "string" ? JSON.parse(data) : data;
+          
+          setMessages((prevMessages) => [
+            ...prevMessages,
+            {
+              id: prevMessages.length + 1,
+              user: msgData.sender || peerUsername || "Unknown",
+              text: msgData.text || data,
+              isP2P: true
             }
-            
-            setMessages(prev => [...prev, { user: peerId, text: decryptedText }]);
-        } catch (error) {
-            console.error("Error handling incoming message:", error);
-            setMessages(prev => [...prev, { user: peerId, text: "ERROR: Message processing failed" }]);
-        }
-    };
-
-    // Get count of fully connected peers
-    const getConnectedPeerCount = () => {
-        return Object.values(peerConnectionStatus).filter(status => status === 'connected').length;
-    };
-
-    // Send message P2P to all peers
-    const sendMessage = (event) => {
-        event?.preventDefault();
-        if (!message) return;
-        
-        // Debug connection state
-        console.log("Current peer connection status:", peerConnectionStatus);
-        console.log("Current public keys:", publicKeys);
-        
-        // Check if we have peers to send to
-        const peerIds = Object.keys(peersRef.current);
-        const connectedPeerIds = peerIds.filter(id => peerConnectionStatus[id] === 'connected');
-        
-        console.log("All peers:", peerIds);
-        console.log("Connected peers:", connectedPeerIds);
-        
-        if (connectedPeerIds.length === 0) {
-            console.log("No connected peers available, falling back to server");
-            // If no direct peers, send through server with encryption
-            const messagePackage = {
-                text: message,
-                recipients: publicKeys
-            };
-            
-            socket.emit("sendMessage", messagePackage, (error) => {
-                if (error) {
-                    console.error("Failed to send message:", error);
-                    setMessages(prev => [...prev, { 
-                        user: "System",
-                        text: `Failed to send message: ${error}`
-                    }]);
-                }
-            });
-            
-            // Add your own message to the list
-            setMessages(prev => [...prev, { 
-                user: name, 
-                text: message,
-                sentVia: "server"  // Track how this was sent
-            }]);
-            
-            setMessage("");
-            return;
-        }
-        
-        let sentToAnyone = false;
-        
-        // Send to each connected peer
-        connectedPeerIds.forEach((peerId) => {
-            const peerPublicKey = publicKeys[peerId];
-            if (!peerPublicKey) {
-                console.error(`Missing public key for peer ${peerId}`);
-                return;
+          ]);
+        } catch (err) {
+          // Fallback for simple string messages
+          setMessages((prevMessages) => [
+            ...prevMessages,
+            {
+              id: prevMessages.length + 1,
+              user: peerUsername || "Unknown",
+              text: String(data),
+              isP2P: true
             }
-            
-            try {
-                const encrypted = encryptMessage(message, peerPublicKey);
-                console.log(`Sending encrypted message to ${peerId}, length: ${encrypted.length}`);
-                peersRef.current[peerId].send(encrypted);
-                sentToAnyone = true;
-            } catch (error) {
-                console.error(`Failed to send to peer ${peerId}:`, error);
-            }
-        });
-        
-        if (sentToAnyone) {
-            // Add your own message to the list
-            setMessages(prev => [...prev, { 
-                user: name, 
-                text: message,
-                sentVia: "p2p"  // Track how this was sent
-            }]);
-        } else {
-            setMessages(prev => [...prev, { 
-                user: "System",
-                text: "Failed to send message to any peers"
-            }]);
+          ]);
         }
-        
-        setMessage("");
+      });
+      
+      connection.on("error", (err) => {
+        console.error(`Connection error with ${peerUsername}:`, err);
+      });
+      
+      connection.on("close", () => {
+        console.log(`Connection closed with ${peerUsername}`);
+        delete peerConnections.current[peerId];
+      });
+      
+    } catch (err) {
+      console.error(`Failed to connect to peer ${peerUsername}:`, err);
+    }
+  };
+  
+  const sendMessage = () => {
+    if (!inputMessage.trim() || !socketRef.current || !joined) return;
+    
+    const messageObj = {
+      sender: username,
+      text: inputMessage,
+      timestamp: new Date().toISOString()
     };
-
-    // Display current connection status for debugging
-    const renderConnectionStatus = () => {
-        const connectedCount = getConnectedPeerCount();
-        const totalPeers = Object.keys(peersRef.current).length;
-        
-        return (
-            <div className="px-4 py-2 bg-slate-100 text-xs text-slate-600">
-                <div>Connection Status: {connected ? 'Connected to server' : 'Disconnected'}</div>
-                <div>P2P Connections: {connectedCount}/{totalPeers} peers connected</div>
-                <div>Public Keys Received: {Object.keys(publicKeys).length}</div>
-                <div className="text-xs text-slate-500">
-                    {Object.entries(peerConnectionStatus).map(([peerId, status]) => (
-                        <div key={peerId}>
-                            Peer {peerId.substring(0, 8)}...: {status}
-                        </div>
-                    ))}
-                </div>
-            </div>
-        );
+    
+    // Add to local messages
+    setMessages((prevMessages) => [
+      ...prevMessages,
+      {
+        id: prevMessages.length + 1,
+        user: username,
+        text: inputMessage,
+        isLocal: true
+      }
+    ]);
+    
+    // Send via socket to all users (could be used for backup/logging)
+    socketRef.current.emit("sendMessage", JSON.stringify(messageObj), (error) => {
+      if (error) {
+        console.error("Error sending message via socket:", error);
+      }
+    });
+    
+    // Send directly to all peer connections for true P2P
+    Object.values(peerConnections.current).forEach((connection) => {
+      if (connection.open) {
+        connection.send(JSON.stringify(messageObj));
+      }
+    });
+    
+    setInputMessage("");
+  };
+  
+  const leaveRoom = () => {
+    // Close all peer connections
+    Object.values(peerConnections.current).forEach((connection) => {
+      if (connection.open) {
+        connection.close();
+      }
+    });
+    peerConnections.current = {};
+    
+    // Destroy the peer
+    if (peerRef.current) {
+      peerRef.current.destroy();
+    }
+    
+    // Disconnect socket
+    if (socketRef.current) {
+      socketRef.current.disconnect();
+    }
+    
+    // Reset state
+    setJoined(false);
+    setMessages([]);
+    setUsers([]);
+  };
+  
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+      }
+      
+      if (peerRef.current) {
+        peerRef.current.destroy();
+      }
     };
-
+  }, []);
+  
+  // Fetch available rooms when component mounts
+  useEffect(() => {
+    const fetchRooms = async () => {
+      try {
+        const response = await fetch("http://localhost:5000/rooms");
+        const roomsData = await response.json();
+        setRooms(roomsData);
+      } catch (err) {
+        console.error("Failed to fetch rooms:", err);
+      }
+    };
+    
+    fetchRooms();
+  }, []);
+  
+  if (!joined) {
     return (
-        <div className="flex w-full justify-center min-h-screen bg-gradient-to-br from-slate-100 to-slate-200 sm:p-4">
-            <div className="w-full max-w-md sm:max-w-lg md:max-w-xl h-[98vh] sm:h-[90vh] flex flex-col sm:rounded-xl shadow-lg overflow-hidden bg-white border border-slate-200">
-                <InfoBar room={room} name={name} users={users} />
-                {renderConnectionStatus()}
-                <div className="flex-1 flex flex-col h-full overflow-hidden">
-                    <Messages 
-                        messages={messages} 
-                        name={name} 
-                        // Add indicator for how messages were sent
-                        enhancedDisplay={true}
-                    />
-                    <Input 
-                        message={message} 
-                        setMessage={setMessage} 
-                        sendMessage={sendMessage} 
-                    />
-                </div>
+      <div className="container mx-auto p-4 max-w-md">
+        <h1 className="text-2xl font-bold mb-6">Join Chat Room</h1>
+        
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Username</label>
+            <input
+              type="text"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              placeholder="Enter your username"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Room</label>
+            <input
+              type="text"
+              value={room}
+              onChange={(e) => setRoom(e.target.value)}
+              placeholder="Enter room name"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          
+          {rooms.length > 0 && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Available Rooms</label>
+              <div className="flex flex-wrap gap-2">
+                {rooms.map(([roomName, roomInfo], index) => (
+                  <button
+                    key={index}
+                    onClick={() => setRoom(roomName)}
+                    className="px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded-full text-sm"
+                  >
+                    {roomName} ({roomInfo.userCount})
+                  </button>
+                ))}
+              </div>
             </div>
+          )}
+          
+          {error && (
+            <div className="p-3 bg-red-100 text-red-700 rounded-md">{error}</div>
+          )}
+          
+          <button
+            onClick={joinRoom}
+            disabled={loading}
+            className={`w-full px-4 py-2 text-white bg-blue-500 rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+              loading ? "opacity-50 cursor-not-allowed" : ""
+            }`}
+          >
+            {loading ? "Joining..." : "Join Room"}
+          </button>
         </div>
+      </div>
     );
+  }
+  
+  return (
+    <div className="container mx-auto p-4">
+      <div className="flex items-center justify-between mb-4">
+        <h1 className="text-2xl font-bold">
+          Room: {room}
+        </h1>
+        <button
+          onClick={leaveRoom}
+          className="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500"
+        >
+          Leave Room
+        </button>
+      </div>
+      
+      <div className="flex flex-wrap md:flex-nowrap gap-4">
+        {/* Chat area */}
+        <div className="w-full md:w-3/4">
+          <div className="bg-white rounded-lg shadow-md h-[500px] flex flex-col">
+            {/* Messages */}
+            <ScrollArea.Root className="flex-grow p-4">
+              <ScrollArea.Viewport className="w-full h-96">
+                <div className="space-y-3">
+                  {messages.length === 0 ? (
+                    <div className="text-center text-gray-500 my-8">
+                      No messages yet. Start the conversation!
+                    </div>
+                  ) : (
+                    messages.map((msg) => (
+                              <ScrollToBottom className="h-full py-1 pl-4 custom-scrollbar shadow-xl">
+                        
+                      <div
+                        key={msg.id}
+                        className={`p-3 rounded-lg max-w-[80%] ${
+                          msg.isLocal
+                            ? "ml-auto bg-blue-500 text-white"
+                            : msg.isAdmin
+                              ? "mx-auto bg-gray-200 text-gray-800 text-center"
+                              : msg.isP2P
+                                ? "bg-green-100 text-gray-800"
+                                : "bg-gray-100 text-gray-800"
+                        }`}
+                      >
+                        {!msg.isLocal && !msg.isAdmin && (
+                          <div className="font-bold text-sm mb-1">
+                            {msg.user}
+                            {msg.isP2P && (
+                              <span className="ml-2 text-xs font-normal text-green-600">
+                                (P2P)
+                              </span>
+                            )}
+                          </div>
+                        )}
+                        <div>{msg.text}</div>
+                      </div>
+                        </ScrollToBottom>
+                    ))
+                  )}
+                </div>
+              </ScrollArea.Viewport>
+              <ScrollArea.Scrollbar
+                className="flex select-none touch-none p-0.5 bg-gray-100 transition-colors duration-150 ease-out hover:bg-gray-200 rounded-tr-md rounded-br-md"
+                orientation="vertical"
+              >
+                <ScrollArea.Thumb className="flex-1 bg-gray-300 rounded-full relative" />
+              </ScrollArea.Scrollbar>
+            </ScrollArea.Root>
+            
+            {/* Input area */}
+            <div className="p-3 border-t">
+              <div className="flex">
+                <input
+                  type="text"
+                  value={inputMessage}
+                  onChange={(e) => setInputMessage(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      sendMessage();
+                    }
+                  }}
+                  placeholder="Type your message..."
+                  className="flex-grow px-3 py-2 border border-gray-300 rounded-l-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <button
+                  onClick={sendMessage}
+                  disabled={!inputMessage.trim()}
+                  className={`px-4 py-2 bg-blue-500 text-white rounded-r-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    !inputMessage.trim() ? "opacity-50 cursor-not-allowed" : ""
+                  }`}
+                >
+                  Send
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        {/* Users sidebar */}
+        <div className="w-full md:w-1/4">
+          <div className="bg-white rounded-lg shadow-md p-4 h-[500px]">
+            <h2 className="text-lg font-semibold mb-3">Users in Room</h2>
+            <ScrollArea.Root className="h-[450px]">
+              <ScrollArea.Viewport className="w-full h-full">
+                <ul className="space-y-2">
+                  {users.length === 0 ? (
+                    <li className="text-gray-500">No users found</li>
+                  ) : (
+                    users.map((user, index) => (
+                      <li
+                        key={index}
+                        className="p-2 rounded-md hover:bg-gray-100 flex items-center"
+                      >
+                        <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
+                        <span>
+                          {user.username}
+                          {user.id === socketRef.current?.id && " (You)"}
+                        </span>
+                      </li>
+                    ))
+                  )}
+                </ul>
+              </ScrollArea.Viewport>
+              <ScrollArea.Scrollbar
+                className="flex select-none touch-none p-0.5 bg-gray-100 transition-colors duration-150 ease-out hover:bg-gray-200 rounded-tr-md rounded-br-md"
+                orientation="vertical"
+              >
+                <ScrollArea.Thumb className="flex-1 bg-gray-300 rounded-full relative" />
+              </ScrollArea.Scrollbar>
+            </ScrollArea.Root>
+          </div>
+        </div>
+      </div>
+      
+      <div className="mt-4 p-3 bg-blue-50 text-blue-700 rounded-md">
+        <h3 className="font-semibold">Connection Status</h3>
+        <p>
+          Connected peers: {Object.keys(peerConnections.current).length}/
+          {users.length > 0 ? users.length - 1 : 0}
+        </p>
+      </div>
+    </div>
+  );
 };
 
 export default ChatPTP;
