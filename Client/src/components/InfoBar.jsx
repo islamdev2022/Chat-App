@@ -61,7 +61,7 @@ const InfoBar = ({ room, users, name }) => {
           <p className="text-white/80 text-xs hidden sm:block">{name}</p>
         </div>
 
-        <a href="/" className="text-white/80 hover:text-white transition-colors p-1 rounded-full hover:bg-white/10">
+        <a href="/chat" className="text-white/80 hover:text-white transition-colors p-1 rounded-full hover:bg-white/10">
           <X size={20} />
         </a>
       </div>

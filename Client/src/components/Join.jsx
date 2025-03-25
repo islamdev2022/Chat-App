@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react"
 import axios from "axios"
-import { Users, Plus, LogIn, AlertCircle } from "lucide-react"
+import { Users, Plus, LogIn, AlertCircle,Undo2 } from "lucide-react"
 import { Link } from "react-router-dom"
 const Join = () => {
   const [name, setName] = useState("")
@@ -71,6 +71,7 @@ let MainUrl = import.meta.env.VITE_SERVER_URL
   }
 
   const handleSubmit = (e) => {
+    console.log("clicked")
     e.preventDefault()
     setIsSubmitting(true)
 
@@ -106,11 +107,13 @@ let MainUrl = import.meta.env.VITE_SERVER_URL
   )
 
   return (
-    <div className="flex justify-center items-center min-h-screen p-4">
+    <div className="flex justify-center items-center min-h-screen p-4 bg-gradient-to-br from-gray-100 to-gray-200">
       <div className="w-full max-w-md">
         <form onSubmit={handleSubmit} className="bg-white shadow-2xl rounded-2xl px-8 pt-6 pb-8 mb-4">
-          <h2 className="text-3xl font-bold text-center mb-6 text-indigo-800">Join a Chat</h2>
-
+          <Link to="/">
+            <Undo2 className="relative text-indigo-800"/>
+          </Link>
+<h2 className="text-3xl font-bold text-center mb-6 text-indigo-800">Join a Chat End to End Encrypted</h2>
           <div className="mb-6">
             <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="username">
               Username
@@ -192,7 +195,7 @@ let MainUrl = import.meta.env.VITE_SERVER_URL
           <div className="flex items-center justify-center">
           <Link
       onClick={e => (!name || (!room && !newRoom)) ? e.preventDefault() : null}
-      to={`/chat?name=${name}&room=${isCreatingRoom ? newRoom : room}`}
+      to={`/chatend2end?name=${name}&room=${isCreatingRoom ? newRoom : room}`}
               className="w-full">
             <button
               className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-bold py-3 px-4 rounded-lg focus:outline-none focus:shadow-outline transition-all duration-200 flex items-center justify-center disabled:opacity-50"
@@ -205,7 +208,6 @@ let MainUrl = import.meta.env.VITE_SERVER_URL
             </Link>
           </div>
         </form>
-        <p className="text-center text-gray-600 text-xs">&copy;2025. All rights reserved.</p>
       </div>
     </div>
   )

@@ -36,4 +36,18 @@
     scrollbar-width: none; /* Firefox */
   }
   
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
+  /* For dark mode support, add this class to a parent element when you want to enable dark mode */
+
+  
   

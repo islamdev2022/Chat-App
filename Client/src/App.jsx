@@ -10,7 +10,8 @@ function App() {
       <Router>
         <Routes>
         <Route path="/" exact element={<Choose/>}/>
-        <Route path="/chat" element={<Chat/>}/>
+        <Route path="/chat" element={<Join/>}/>
+        <Route path="/chatend2end" element={<Chat/>}/>
         <Route path="/chatP2P" element={<ChatPTP/>}/>
         </Routes>
       </Router>

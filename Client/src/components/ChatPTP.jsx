@@ -3,7 +3,9 @@ import Peer from "peerjs";
 import * as ScrollArea from '@radix-ui/react-scroll-area';
 import { io } from "socket.io-client";
 import ScrollToBottom from "react-scroll-to-bottom"
-
+import { Users, LogIn,Undo2,LogOut,Send } from "lucide-react";
+import { Link } from "react-router-dom";
+import { Navigate } from "react-router-dom";
 const ChatPTP = () => {
   // States for user info and room
   const [username, setUsername] = useState("");
@@ -295,11 +297,11 @@ const ChatPTP = () => {
     ]);
     
     // Send via socket to all users (could be used for backup/logging)
-    socketRef.current.emit("sendMessage", JSON.stringify(messageObj), (error) => {
-      if (error) {
-        console.error("Error sending message via socket:", error);
-      }
-    });
+    // socketRef.current.emit("sendMessage", JSON.stringify(messageObj.text), (error) => {
+    //   if (error) {
+    //     console.error("Error sending message via socket:", error);
+    //   }
+    // });
     
     // Send directly to all peer connections for true P2P
     Object.values(peerConnections.current).forEach((connection) => {
@@ -363,22 +365,46 @@ const ChatPTP = () => {
     
     fetchRooms();
   }, []);
+
+  const messagesEndRef = useRef(null)
+  const scrollViewportRef = useRef(null)
+
+  // Function to scroll to bottom
+  const scrollToBottom = () => {
+    if (messagesEndRef.current && scrollViewportRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: "smooth" })
+    }
+  }
+
+  // Scroll to bottom when messages change
+  useEffect(() => {
+    scrollToBottom()
+  }, [messages])
   
   if (!joined) {
     return (
-      <div className="container mx-auto p-4 max-w-md">
-        <h1 className="text-2xl font-bold mb-6">Join Chat Room</h1>
+        <div className="flex items-center justify-center h-screen w-full bg-gradient-to-br from-gray-100 to-gray-200" >
+            <div className="bg-white shadow-2xl rounded-2xl px-8 pt-6 pb-8 mb-4 w-full max-w-md">
+            <Link to="/">
+            <Undo2 className="relative text-indigo-800"/>
+          </Link>
+         <h2 className="text-3xl font-bold text-center mb-6 text-indigo-800"> Join a Chat Peer to Peer</h2>
         
         <div className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Username</label>
-            <input
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              placeholder="Enter your username"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+            <div className="relative">
+              <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">
+                <Users size={18} />
+              </span>
+              <input
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder="Enter your username"
+                className="w-full px-3 py-2 pl-10 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all duration-200"
+              />
+            </div>
           </div>
           
           <div>
@@ -388,11 +414,11 @@ const ChatPTP = () => {
               value={room}
               onChange={(e) => setRoom(e.target.value)}
               placeholder="Enter room name"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all duration-200"
             />
           </div>
           
-          {rooms.length > 0 && (
+          {rooms && rooms.length > 0 && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Available Rooms</label>
               <div className="flex flex-wrap gap-2">
@@ -400,7 +426,7 @@ const ChatPTP = () => {
                   <button
                     key={index}
                     onClick={() => setRoom(roomName)}
-                    className="px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded-full text-sm"
+                    className="px-3 py-1 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 rounded-full text-sm transition-colors duration-200"
                   >
                     {roomName} ({roomInfo.userCount})
                   </button>
@@ -410,162 +436,174 @@ const ChatPTP = () => {
           )}
           
           {error && (
-            <div className="p-3 bg-red-100 text-red-700 rounded-md">{error}</div>
+            <div className="p-3 bg-red-100 text-red-700 rounded-md flex items-center">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+              </svg>
+              {error}
+            </div>
           )}
           
           <button
             onClick={joinRoom}
-            disabled={loading}
-            className={`w-full px-4 py-2 text-white bg-blue-500 rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-              loading ? "opacity-50 cursor-not-allowed" : ""
+            disabled={loading || !username || !room}
+            className={`w-full px-4 py-2 text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all duration-200 flex items-center justify-center ${
+              (loading || !username || !room) ? "opacity-50 cursor-not-allowed" : ""
             }`}
           >
+            <LogIn size={18} className="mr-2" />
             {loading ? "Joining..." : "Join Room"}
           </button>
         </div>
+        </div>
+
       </div>
     );
   }
   
   return (
     <div className="container mx-auto p-4">
-      <div className="flex items-center justify-between mb-4">
-        <h1 className="text-2xl font-bold">
-          Room: {room}
-        </h1>
-        <button
-          onClick={leaveRoom}
-          className="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500"
-        >
-          Leave Room
-        </button>
-      </div>
-      
-      <div className="flex flex-wrap md:flex-nowrap gap-4">
-        {/* Chat area */}
-        <div className="w-full md:w-3/4">
-          <div className="bg-white rounded-lg shadow-md h-[500px] flex flex-col">
-            {/* Messages */}
-            <ScrollArea.Root className="flex-grow p-4">
-              <ScrollArea.Viewport className="w-full h-96">
-                <div className="space-y-3">
-                  {messages.length === 0 ? (
-                    <div className="text-center text-gray-500 my-8">
-                      No messages yet. Start the conversation!
-                    </div>
-                  ) : (
-                    messages.map((msg) => (
-                              <ScrollToBottom className="h-full py-1 pl-4 custom-scrollbar shadow-xl">
-                        
-                      <div
-                        key={msg.id}
-                        className={`p-3 rounded-lg max-w-[80%] ${
-                          msg.isLocal
-                            ? "ml-auto bg-blue-500 text-white"
-                            : msg.isAdmin
-                              ? "mx-auto bg-gray-200 text-gray-800 text-center"
-                              : msg.isP2P
-                                ? "bg-green-100 text-gray-800"
-                                : "bg-gray-100 text-gray-800"
-                        }`}
-                      >
-                        {!msg.isLocal && !msg.isAdmin && (
-                          <div className="font-bold text-sm mb-1">
-                            {msg.user}
-                            {msg.isP2P && (
-                              <span className="ml-2 text-xs font-normal text-green-600">
-                                (P2P)
-                              </span>
-                            )}
-                          </div>
-                        )}
-                        <div>{msg.text}</div>
-                      </div>
-                        </ScrollToBottom>
-                    ))
-                  )}
-                </div>
-              </ScrollArea.Viewport>
-              <ScrollArea.Scrollbar
-                className="flex select-none touch-none p-0.5 bg-gray-100 transition-colors duration-150 ease-out hover:bg-gray-200 rounded-tr-md rounded-br-md"
-                orientation="vertical"
-              >
-                <ScrollArea.Thumb className="flex-1 bg-gray-300 rounded-full relative" />
-              </ScrollArea.Scrollbar>
-            </ScrollArea.Root>
-            
-            {/* Input area */}
-            <div className="p-3 border-t">
-              <div className="flex">
-                <input
-                  type="text"
-                  value={inputMessage}
-                  onChange={(e) => setInputMessage(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && !e.shiftKey) {
-                      e.preventDefault();
-                      sendMessage();
-                    }
-                  }}
-                  placeholder="Type your message..."
-                  className="flex-grow px-3 py-2 border border-gray-300 rounded-l-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-                <button
-                  onClick={sendMessage}
-                  disabled={!inputMessage.trim()}
-                  className={`px-4 py-2 bg-blue-500 text-white rounded-r-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                    !inputMessage.trim() ? "opacity-50 cursor-not-allowed" : ""
-                  }`}
+      <div className="bg-white  rounded-lg shadow-lg p-4">
+        <div className="flex items-center justify-between mb-4">
+          <h1 className="text-2xl font-bold text-blue-600 ">Room: {room}</h1>
+          <button
+            onClick={leaveRoom}
+            className="px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 transition-all flex items-center"
+          >
+            <LogOut className="mr-2 h-4 w-4" /> Leave Room
+          </button>
+        </div>
+
+        <div className="flex flex-wrap md:flex-nowrap gap-4">
+          {/* Chat area */}
+          <div className="w-full md:w-3/4">
+            <div className="bg-white  rounded-lg shadow-md h-[450px] flex flex-col border border-gray-200 ">
+              {/* Messages */}
+              <ScrollArea.Root className="flex-grow">
+                <ScrollArea.Viewport className="w-full h-96 p-4" ref={scrollViewportRef}>
+                  <div className="space-y-4 flex flex-col ">
+                    {messages.length === 0 ? (
+                      <div className="text-center text-gray-500 my-8">No messages yet. Start the conversation!</div>
+                    ) : (
+                      messages.map((msg) => (
+                        <div
+                          key={msg.id}
+                          className={`p-3 rounded-lg max-w-[65%] ${
+                            msg.isLocal
+                              ? "ml-auto bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-sm"
+                              : msg.isAdmin
+                                ? "mx-auto bg-gray-200  text-gray-800 text-center max-w-[85%]"
+                                : msg.isP2P
+                                  ? "bg-green-100  text-gray-800 shadow-sm w-fit"
+                                  : "bg-gray-100  text-gray-800 shadow-sm"
+                          }`}
+                          style={{
+                            animation: "fadeIn 0.3s ease-out",
+                            wordBreak: "break-word",
+                          }}
+                        >
+                          {!msg.isLocal && !msg.isAdmin && (
+                            <div className="font-bold text-sm mb-1">
+                              {msg.user}
+                              {msg.isP2P && (
+                                <span className="ml-2 text-xs font-normal text-green-600 ">
+                                  (P2P)
+                                </span>
+                              )}
+                            </div>
+                          )}
+                          <div className="break-words ">{msg.text}hj</div>
+                        </div>
+                      ))
+                    )}
+                    {/* This empty div is used as a reference for scrolling to the bottom */}
+                    <div ref={messagesEndRef} />
+                  </div>
+                </ScrollArea.Viewport>
+                <ScrollArea.Scrollbar
+                  className="flex select-none touch-none p-0.5 bg-gray-100 transition-colors duration-150 ease-out hover:bg-gray-200  rounded-tr-md rounded-br-md"
+                  orientation="vertical"
                 >
-                  Send
-                </button>
+                  <ScrollArea.Thumb className="flex-1 bg-gray-300  rounded-full relative" />
+                </ScrollArea.Scrollbar>
+              </ScrollArea.Root>
+
+              {/* Input area */}
+              <div className="p-3 border-t border-gray-200 ">
+                <div className="flex">
+                  <input
+                    type="text"
+                    value={inputMessage}
+                    onChange={(e) => setInputMessage(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault()
+                        sendMessage()
+                      }
+                    }}
+                    placeholder="Type your message..."
+                    className="flex-grow px-3 py-2 border border-gray-300 rounded-l-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  <button
+                    onClick={sendMessage}
+                    disabled={!inputMessage.trim()}
+                    className={`px-4 py-2 bg-blue-500 text-white rounded-r-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 flex items-center justify-center ${
+                      !inputMessage.trim() ? "opacity-50 cursor-not-allowed" : ""
+                    }`}
+                  >
+                    <Send className="h-4 w-4" />
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-        
-        {/* Users sidebar */}
-        <div className="w-full md:w-1/4">
-          <div className="bg-white rounded-lg shadow-md p-4 h-[500px]">
-            <h2 className="text-lg font-semibold mb-3">Users in Room</h2>
-            <ScrollArea.Root className="h-[450px]">
-              <ScrollArea.Viewport className="w-full h-full">
-                <ul className="space-y-2">
-                  {users.length === 0 ? (
-                    <li className="text-gray-500">No users found</li>
-                  ) : (
-                    users.map((user, index) => (
-                      <li
-                        key={index}
-                        className="p-2 rounded-md hover:bg-gray-100 flex items-center"
-                      >
-                        <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
-                        <span>
-                          {user.username}
-                          {user.id === socketRef.current?.id && " (You)"}
-                        </span>
-                      </li>
-                    ))
-                  )}
-                </ul>
-              </ScrollArea.Viewport>
-              <ScrollArea.Scrollbar
-                className="flex select-none touch-none p-0.5 bg-gray-100 transition-colors duration-150 ease-out hover:bg-gray-200 rounded-tr-md rounded-br-md"
-                orientation="vertical"
-              >
-                <ScrollArea.Thumb className="flex-1 bg-gray-300 rounded-full relative" />
-              </ScrollArea.Scrollbar>
-            </ScrollArea.Root>
+
+          {/* Users sidebar */}
+          <div className="w-full md:w-1/4">
+            <div className="bg-white  rounded-lg shadow-md p-4 h-[500px] border border-gray-200 ">
+              <h2 className="text-lg font-semibold mb-3 flex items-center text-gray-800 ">
+                <Users className="mr-2 h-5 w-5 text-blue-500" /> Users in Room
+              </h2>
+              <ScrollArea.Root className="h-[420px]">
+                <ScrollArea.Viewport className="w-full h-full">
+                  <ul className="space-y-1">
+                    {users.length === 0 ? (
+                      <li className="text-gray-500 ">No users found</li>
+                    ) : (
+                      users.map((user, index) => (
+                        <li
+                          key={index}
+                          className="p-2 rounded-md hover:bg-gray-100  transition-colors flex items-center"
+                        >
+                          <div className="w-2 h-2 bg-green-500 rounded-full mr-2"></div>
+                          <span
+                            className={`${user.id === socketRef.current?.id ? "font-medium" : ""} `}
+                          >
+                            {user.username}
+                            {user.id === socketRef.current?.id && " (You)"}
+                          </span>
+                        </li>
+                      ))
+                    )}
+                  </ul>
+                </ScrollArea.Viewport>
+                <ScrollArea.Scrollbar
+                  className="flex select-none touch-none p-0.5 bg-gray-100  transition-colors duration-150 ease-out hover:bg-gray-200  rounded-tr-md rounded-br-md"
+                  orientation="vertical"
+                >
+                  <ScrollArea.Thumb className="flex-1 bg-gray-300  rounded-full relative" />
+                </ScrollArea.Scrollbar>
+              </ScrollArea.Root>
+            </div>
           </div>
         </div>
-      </div>
-      
-      <div className="mt-4 p-3 bg-blue-50 text-blue-700 rounded-md">
-        <h3 className="font-semibold">Connection Status</h3>
-        <p>
-          Connected peers: {Object.keys(peerConnections.current).length}/
-          {users.length > 0 ? users.length - 1 : 0}
-        </p>
+
+        <div className="mt-4 p-3 bg-blue-50 text-blue-700  rounded-md border border-blue-100 ">
+          <h3 className="font-semibold">Connection Status</h3>
+          <p>
+            Connected peers: {Object.keys(peerConnections.current).length}/{users.length > 0 ? users.length - 1 : 0}
+          </p>
+        </div>
       </div>
     </div>
   );
