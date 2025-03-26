@@ -1,6 +1,6 @@
 import ScrollToBottom from "react-scroll-to-bottom"
 import Message from "./Message"
-import React, { useRef, useEffect } from 'react';
+import React from 'react';
 const Messages = ({ messages, name }) => {
   console.log("messagesdsfsfsdf", messages)
   return (

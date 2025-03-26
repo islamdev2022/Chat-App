@@ -2,12 +2,9 @@ import { useEffect, useRef, useState } from "react";
 import Peer from "peerjs";
 import * as ScrollArea from '@radix-ui/react-scroll-area';
 import { io } from "socket.io-client";
-import ScrollToBottom from "react-scroll-to-bottom"
-import { Users, LogIn,Undo2,LogOut,Send,X } from "lucide-react";
+import { Users, LogIn,Undo2,X } from "lucide-react";
 import { Link } from "react-router-dom";
-import { Navigate } from "react-router-dom";
 import Input from "./Input";
-import JoinRoomPTP from "./JoinPTP";
 const ChatPTP = () => {
   // States for user info and room
   const [username, setUsername] = useState("");
