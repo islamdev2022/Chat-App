@@ -1,11 +1,13 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback,useRef } from 'react';
 import queryString from 'query-string';
 import io from 'socket.io-client';
 import CryptoJS from 'crypto-js';
 import elliptic from 'elliptic';
 import InfoBar from './InfoBar';
 import Input from './Input';
-import Messages from './Messages';
+import Message from './Message';
+import * as ScrollArea from '@radix-ui/react-scroll-area';
+import { Users } from 'lucide-react';
 
 // Initialize elliptic curve
 const EC = new elliptic.ec('secp256k1');
@@ -19,7 +21,16 @@ const Chat = () => {
     const [users, setUsers] = useState([]);
     const [keyPair, setKeyPair] = useState(null);
     const [publicKeys, setPublicKeys] = useState({});
+
+  const messagesEndRef = useRef(null);
     const ENDPOINT = import.meta.env.VITE_SERVER_URL
+    
+      // Scroll to bottom when messages change
+      useEffect(() => {
+        if (messagesEndRef.current) {
+          messagesEndRef.current.scrollTop = messagesEndRef.current.scrollHeight;
+        }
+      }, [messages]);
 
     // Generate or retrieve key pair
     const generateKeyPair = useCallback(() => {
@@ -48,7 +59,6 @@ const Chat = () => {
         return newKeyPair;
     }, [name, room]);
 
-    console.log("keyPair", keyPair)
 
     // Derive a shared secret and encrypt using AES
 const encryptMessage = useCallback((text, recipientPublicKey) => {
@@ -84,12 +94,22 @@ const encryptMessage = useCallback((text, recipientPublicKey) => {
         
         // Combine IV and ciphertext
         const ivString = CryptoJS.enc.Base64.stringify(iv);
+
+        console.log("Complete encryption details:", {
+            recipientPublicKeyFull: recipientPublicKey,
+            myPrivateKeyHint: keyPair.getPrivate().toString(16).substring(0, 8) + '...',
+            sharedSecretHint: sharedSecret.getX().toString(16).substring(0, 8) + '...',
+            ivHint: iv.toString().substring(0, 10) + '...',
+            ciphertextHint: encrypted.toString().substring(0, 10) + '...'
+        }
+        )
         
         // Return both IV and encrypted message
         return JSON.stringify({
             iv: ivString,
             ciphertext: encrypted.toString()
         });
+        
     } catch (error) {
         console.error('Encryption error:', error);
         return JSON.stringify({
@@ -219,7 +239,6 @@ const decryptMessage = useCallback((encryptedData, senderPublicKey) => {
         socket.on('message', (message) => {
             // Handle encrypted message packages
             if (message.encrypted) {
-                console.log("message is encrypted")
                 try {
                     // Parse the message package
                     const messagePackage = JSON.parse(message.text);
@@ -328,12 +347,78 @@ const decryptMessage = useCallback((encryptedData, senderPublicKey) => {
 
     // UI Rendering
     return (
-        <div className="flex w-full justify-center min-h-screen bg-gradient-to-br from-slate-100 to-slate-200 sm:p-4">
-      <div className="w-full max-w-md sm:max-w-lg md:max-w-xl h-[98vh] sm:h-[90vh] flex flex-col sm:rounded-xl shadow-lg overflow-hidden bg-white border border-slate-200">
-        <InfoBar room={room} name={name} users={users} />
-        <div className="flex-1 flex flex-col h-full overflow-hidden">
-          <Messages messages={messages} name={name} />
-          <Input message={message} setMessage={setMessage} sendMessage={sendMessage} />
+       
+    <div className="container mx-auto min-h-screen flex flex-col">
+      <div className="bg-white rounded-lg shadow-lg p-4 flex-grow flex flex-col">
+        {/* Info Bar */}
+        <InfoBar room={room} users={users} name={name} />
+
+        {/* Main Content Area */}
+        <div className="flex flex-col lg:flex-row gap-4 flex-grow">
+            {/* Users Sidebar */}
+          <div className="w-full lg:w-1/4">
+            <div className="bg-white rounded-lg shadow-md p-4 h-full border border-gray-200">
+              <h2 className="text-lg font-semibold mb-3 flex items-center text-gray-800">
+                <Users className="mr-2 h-5 w-5 text-blue-500" /> Users in Room
+              </h2>
+              <ScrollArea.Root className="h-20 ">
+                <ScrollArea.Viewport className="w-full h-full">
+                  <ul className="space-y-1">
+                  {users && users.map((user) => (
+                    <div 
+                      key={user.id} 
+                      className="flex items-center gap-2 p-2 hover:bg-slate-50 rounded-md"
+                    >
+                      <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                      <span className="text-sm font-medium text-slate-700">
+                        {user.username}
+                      </span>
+                    </div>
+                  ))}
+                  </ul>
+                </ScrollArea.Viewport>
+                <ScrollArea.Scrollbar
+                  className="flex select-none touch-none p-0.5 bg-gray-100 transition-colors duration-150 ease-out hover:bg-gray-200 rounded-tr-md rounded-br-md"
+                  orientation="vertical"
+                >
+                  <ScrollArea.Thumb className="flex-1 bg-gray-300 rounded-full relative" />
+                </ScrollArea.Scrollbar>
+              </ScrollArea.Root>
+            </div>
+          </div>
+          {/* Chat Area */}
+          <div className="w-full lg:w-3/4 flex flex-col">
+            <div className="bg-white rounded-lg shadow-md flex-grow flex flex-col border border-gray-200 overflow-hidden">
+              {/* Messages Scroll Area */}
+              <ScrollArea.Root className="flex-grow h-96 overflow-hidden">
+                <ScrollArea.Viewport 
+                  className="w-full h-full p-4 overflow-auto" 
+                  ref={messagesEndRef}
+                >
+                  <div className="space-y-2 flex flex-col min-h-full">
+                    {messages.map((message, i) => (
+                      <Message 
+                        key={i} 
+                        message={message} 
+                        name={name} 
+                      />
+                    ))}
+                  </div>
+                </ScrollArea.Viewport>
+                <ScrollArea.Scrollbar
+                  className="flex select-none touch-none p-0.5 bg-gray-100 transition-colors duration-150 ease-out hover:bg-gray-200 rounded-tr-md rounded-br-md"
+                  orientation="vertical"
+                >
+                  <ScrollArea.Thumb className="flex-1 bg-gray-300 rounded-full relative" />
+                </ScrollArea.Scrollbar>
+              </ScrollArea.Root>
+
+              {/* Input Area */}
+              <Input message={message} setMessage={setMessage} sendMessage={sendMessage} type="end2end" />
+            </div>
+          </div>
+
+          
         </div>
       </div>
     </div>
