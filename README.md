@@ -76,5 +76,5 @@ The Socket.io server is only used for signaling (initial connection and public k
 - The server stores room information in memory, so data is lost on server restart (consider using a database for persistent storage).
 
 ## License
-
+This Project is Created By Birouk Mohammed Islam Feel free to contribute and optimise or add new features 
 This project is licensed under the MIT License - see the LICENSE file for details.
